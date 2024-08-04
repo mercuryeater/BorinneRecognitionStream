@@ -1,12 +1,19 @@
 import os
 import cv2
 import time
+import numpy as np
 from dotenv import load_dotenv
 
 load_dotenv()
 
 def detect_movement(frame1, frame2):
-    diff = cv2.absdiff(frame1, frame2)
+    # Crop the frames to exclude the timestamp area
+    crop_y = 50  # adjust this value to match the height of the timestamp area
+    frame1_cropped = frame1[crop_y:, :]  # crop the frame from the top
+    frame2_cropped = frame2[crop_y:, :]  # crop the frame from the top
+
+    # Process the cropped frames
+    diff = cv2.absdiff(frame1_cropped, frame2_cropped)
     gray = cv2.cvtColor(diff, cv2.COLOR_BGR2GRAY)
     blur = cv2.GaussianBlur(gray, (5, 5), 0)
     _, thresh = cv2.threshold(blur, 20, 255, cv2.THRESH_BINARY)
