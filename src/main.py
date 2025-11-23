@@ -37,15 +37,18 @@ def save_photo(frame):
 def read_rtsp_stream(rtsp_url):
     # Initialize the video capture object
     video_capture = cv2.VideoCapture(rtsp_url)
-    
+
     # Check if the stream is opened
     if not video_capture.isOpened():
-        print("Error: Could not open RTSP stream")
-        return
-    
+        raise ConnectionError("Could not open RTSP stream")
+
     ret, frame1 = video_capture.read()
     ret, frame2 = video_capture.read()
-    
+
+    if not ret:
+        video_capture.release()
+        raise ConnectionError("Could not read initial frames from stream")
+
     # Read the stream
     while True:
         contours = detect_movement(frame1, frame2)
@@ -55,25 +58,69 @@ def read_rtsp_stream(rtsp_url):
                 continue
             cv2.rectangle(frame1, (x, y), (x+w, y+h), (0, 255, 0), 2)
             save_photo(frame1)
-        
+
         cv2.imshow('RTSP Stream', frame1)
         frame1 = frame2
         ret, frame2 = video_capture.read()
-        
+
+        # Check if frame was read successfully
+        if not ret:
+            video_capture.release()
+            cv2.destroyAllWindows()
+            raise ConnectionError("Lost connection to RTSP stream")
+
         # Exit on key press
         if cv2.waitKey(1) & 0xFF == ord('q'):
-            break
-    
+            video_capture.release()
+            cv2.destroyAllWindows()
+            return  # Normal exit, don't raise exception
+
     # Release the video_capture object
     video_capture.release()
     cv2.destroyAllWindows()
 
 
 
-if __name__ == '__main__':
+def main():
+    """Main function with automatic reconnection logic"""
     camera_ip = os.getenv("CAM_IP")
     username = os.getenv("CAM_USERNAME")
     password = os.getenv("CAM_PASSWORD")
 
-    # Tapo C100 RTSP with authentication
-    read_rtsp_stream(f"rtsp://{username}:{password}@{camera_ip}/stream1")
+    # Build RTSP URL
+    rtsp_url = f"rtsp://{username}:{password}@{camera_ip}/stream1"
+
+    retry_delay = 10  # seconds
+    attempt = 0
+
+    print("=== Sistema de Detección de Movimiento ===")
+    print(f"Cámara: {camera_ip}")
+    print("Presiona 'q' para salir\n")
+
+    while True:
+        attempt += 1
+        try:
+            print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Intento #{attempt}: Conectando a cámara...")
+            read_rtsp_stream(rtsp_url)
+            # If we get here, user pressed 'q' to exit normally
+            print("\nSaliendo del programa...")
+            break
+
+        except ConnectionError as e:
+            print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Error de conexión: {e}")
+            print(f"Reintentando en {retry_delay} segundos...\n")
+            time.sleep(retry_delay)
+
+        except KeyboardInterrupt:
+            print("\n\nInterrupción detectada (Ctrl+C)")
+            print("Saliendo del programa...")
+            break
+
+        except Exception as e:
+            print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Error inesperado: {e}")
+            print(f"Reintentando en {retry_delay} segundos...\n")
+            time.sleep(retry_delay)
+
+
+if __name__ == '__main__':
+    main()
