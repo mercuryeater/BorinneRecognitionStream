@@ -71,9 +71,9 @@ def read_rtsp_stream(rtsp_url):
 
 
 if __name__ == '__main__':
-    camera_ip= os.getenv("CAM_IP")
-    port= os.getenv("STREAM_PORT")
-    username= os.getenv("CAM_USERNAME")
-    password= os.getenv("CAM_PASSWORD")
+    camera_ip = os.getenv("CAM_IP")
+    username = os.getenv("CAM_USERNAME")
+    password = os.getenv("CAM_PASSWORD")
 
-    read_rtsp_stream(f"rtsp://{username}:{password}@{camera_ip}:{port}/stream1")
+    # Tapo C100 RTSP with authentication
+    read_rtsp_stream(f"rtsp://{username}:{password}@{camera_ip}/stream1")
