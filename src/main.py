@@ -34,7 +34,7 @@ def save_photo(frame):
         cv2.imwrite(f"data/output/img_{time.strftime('%Y-%m-%d_%H-%M-%S')}.jpg", frame)
         save_photo.last_save_time = current_time
 
-def read_rtsp_stream(rtsp_url):
+def read_rtsp_stream(rtsp_url, show_gui=False):
     # Initialize the video capture object
     video_capture = cv2.VideoCapture(rtsp_url)
 
@@ -59,25 +59,32 @@ def read_rtsp_stream(rtsp_url):
             cv2.rectangle(frame1, (x, y), (x+w, y+h), (0, 255, 0), 2)
             save_photo(frame1)
 
-        cv2.imshow('RTSP Stream', frame1)
+        if show_gui:
+            cv2.imshow('RTSP Stream', frame1)
+
         frame1 = frame2
         ret, frame2 = video_capture.read()
 
         # Check if frame was read successfully
         if not ret:
             video_capture.release()
-            cv2.destroyAllWindows()
+            if show_gui:
+                cv2.destroyAllWindows()
             raise ConnectionError("Lost connection to RTSP stream")
 
-        # Exit on key press
-        if cv2.waitKey(1) & 0xFF == ord('q'):
+        # Exit on key press (only in GUI mode)
+        if show_gui and cv2.waitKey(1) & 0xFF == ord('q'):
             video_capture.release()
             cv2.destroyAllWindows()
             return  # Normal exit, don't raise exception
+        elif not show_gui:
+            # In headless mode, add a small delay to prevent CPU overload
+            time.sleep(0.01)
 
     # Release the video_capture object
     video_capture.release()
-    cv2.destroyAllWindows()
+    if show_gui:
+        cv2.destroyAllWindows()
 
 
 
@@ -87,22 +94,30 @@ def main():
     username = os.getenv("CAM_USERNAME")
     password = os.getenv("CAM_PASSWORD")
 
+    # Check if HEADLESS mode is enabled (default: True - no GUI)
+    headless = os.getenv("HEADLESS", "True").lower() in ["true", "1", "yes"]
+    show_gui = not headless
+
     # Build RTSP URL
     rtsp_url = f"rtsp://{username}:{password}@{camera_ip}/stream1"
 
-    retry_delay = 10  # seconds
+    retry_delay = 10  # seconds 
     attempt = 0
 
     print("=== Sistema de Detección de Movimiento ===")
     print(f"Cámara: {camera_ip}")
-    print("Presiona 'q' para salir\n")
+    print(f"Modo: {'HEADLESS (sin ventana)' if headless else 'GUI (con ventana)'}")
+    if show_gui:
+        print("Presiona 'q' para salir\n")
+    else:
+        print("Presiona Ctrl+C para salir\n")
 
     while True:
         attempt += 1
         try:
             print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Intento #{attempt}: Conectando a cámara...")
-            read_rtsp_stream(rtsp_url)
-            # If we get here, user pressed 'q' to exit normally
+            read_rtsp_stream(rtsp_url, show_gui=show_gui)
+            # If we get here, user pressed 'q' to exit normally (only in GUI mode)
             print("\nSaliendo del programa...")
             break
 
