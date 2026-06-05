@@ -1,0 +1,28 @@
+services:
+  borinne:
+    build: .
+    image: borinne-recognition-stream
+    restart: unless-stopped
+
+    # Stream the web viewer on host port 5000
+    ports:
+      - "5000:5000"
+
+    # Load credentials from .env (never bake secrets into the image)
+    env_file:
+      - .env
+
+    # Persist cat snapshots on the host even after container restarts
+    volumes:
+      - ./src/cat_shots:/app/src/cat_shots
+
+    # Allow the container to access the camera on the same LAN.
+    # Switch to "bridge" if your camera is reachable via the host's IP.
+    network_mode: host
+
+    # Logging — keeps the last 50 MB across 5 rotated files
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"

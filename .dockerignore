@@ -1,0 +1,9 @@
+venv/
+__pycache__/
+*.pyc
+*.pyo
+src/cat_shots/
+src/data/
+.env
+*.egg-info/
+.git/
