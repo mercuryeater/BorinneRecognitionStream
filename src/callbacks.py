@@ -20,6 +20,7 @@ import cv2
 # ---------------------------------------------------------------------------
 _yolo_model = None
 _model_lock = threading.Lock()
+_model_failed = False  # set True on load error so we don't keep retrying
 
 CAT_CLASS_NAME = "cat"   # COCO class label used by YOLOv8
 YOLO_MODEL = "yolov8n.pt"  # nano — fast and accurate enough for this task
@@ -27,16 +28,30 @@ YOLO_MODEL = "yolov8n.pt"  # nano — fast and accurate enough for this task
 
 def _get_model():
     """Return a cached YOLOv8 model, loading it on first call."""
-    global _yolo_model
+    global _yolo_model, _model_failed
     with _model_lock:
+        if _model_failed:
+            return None
         if _yolo_model is None:
-            # Imported here so the rest of the module works even if ultralytics
-            # is not yet installed (useful during container build).
+            import torch  # noqa: PLC0415
             from ultralytics import YOLO  # noqa: PLC0415
 
-            print(f"[isCat] Loading {YOLO_MODEL} … (first run downloads the weights)")
-            _yolo_model = YOLO(YOLO_MODEL)
-            print("[isCat] Model ready.")
+            # PyTorch 2.6+ changed weights_only default to True, which breaks
+            # older ultralytics checkpoints. Add the required safe globals.
+            try:
+                from ultralytics.nn.tasks import DetectionModel  # noqa: PLC0415
+                torch.serialization.add_safe_globals([DetectionModel])
+            except Exception:
+                pass  # older torch versions don't have add_safe_globals
+
+            try:
+                print(f"[isCat] Loading {YOLO_MODEL} ...")
+                _yolo_model = YOLO(YOLO_MODEL)
+                print("[isCat] Model ready.")
+            except Exception as exc:
+                print(f"[isCat] ERROR loading model: {exc}")
+                _model_failed = True
+                return None
     return _yolo_model
 
 
