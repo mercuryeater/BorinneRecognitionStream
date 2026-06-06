@@ -4,7 +4,7 @@ services:
     image: borinne-recognition-stream
     restart: unless-stopped
 
-    # Stream the web viewer on host port 5000
+    # Expose the web stream on the host
     ports:
       - "5000:5000"
 
@@ -12,15 +12,21 @@ services:
     env_file:
       - .env
 
-    # Persist cat snapshots on the host even after container restarts
+    # Persist cat snapshots on the host machine even after container restarts.
+    # Photos appear in ./src/cat_shots/ next to your docker-compose.yml.
     volumes:
       - ./src/cat_shots:/app/src/cat_shots
 
-    # Allow the container to access the camera on the same LAN.
-    # Switch to "bridge" if your camera is reachable via the host's IP.
-    network_mode: host
+    # NOTE: network_mode: host is NOT used here because:
+    #   - On Mac/Windows Docker Desktop it doesn't share the host LAN anyway
+    #   - It conflicts with the ports directive above
+    # The default bridge network works fine: Docker Desktop routes LAN traffic
+    # so the container can reach the camera at 192.168.0.x without any changes.
+    #
+    # On Linux hosts only: if the camera is unreachable, uncomment the line
+    # below AND remove the ports section above (they can't coexist).
+    # network_mode: host
 
-    # Logging — keeps the last 50 MB across 5 rotated files
     logging:
       driver: json-file
       options:

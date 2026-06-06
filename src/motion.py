@@ -40,25 +40,27 @@ class MotionDetector:
 
     def process(self, frame1, frame2):
         """
-        Compare two consecutive frames, draw bounding boxes on frame1 for any
-        significant contours, and fire registered callbacks if motion is found.
+        Compare two consecutive frames, draw bounding boxes on a copy for the
+        stream, and fire registered callbacks with the clean (no boxes) frame.
 
-        Returns the annotated frame1.
+        Returns the annotated copy for display.
         """
         contours = self._detect(frame1, frame2)
         motion_found = False
+        annotated = frame1.copy()
 
         for contour in contours:
             if cv2.contourArea(contour) < self.MIN_CONTOUR_AREA:
                 continue
             x, y, w, h = cv2.boundingRect(contour)
-            cv2.rectangle(frame1, (x, y + self.CROP_TOP_PX), (x + w, y + h + self.CROP_TOP_PX), (0, 255, 0), 2)
+            cv2.rectangle(annotated, (x, y + self.CROP_TOP_PX), (x + w, y + h + self.CROP_TOP_PX), (0, 255, 0), 2)
             motion_found = True
 
         if motion_found:
+            # Pass the clean frame to callbacks so saved images have no boxes
             self._fire_callbacks(frame1)
 
-        return frame1
+        return annotated
 
     # ------------------------------------------------------------------
     # Internal helpers
